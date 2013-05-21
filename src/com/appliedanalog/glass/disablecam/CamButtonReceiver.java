@@ -27,6 +27,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorListener;
 import android.hardware.SensorManager;
+import android.os.Bundle;
 import android.util.Log;
 
 public class CamButtonReceiver extends BroadcastReceiver implements SensorEventListener {
@@ -40,6 +41,7 @@ public class CamButtonReceiver extends BroadcastReceiver implements SensorEventL
 	
 	SensorManager senseMan = null;
 	String lastAction;
+	Bundle lastExtras;
 	Context lastContext;
 	Semaphore dataLock = new Semaphore(1);
 	int buttonsPressed = 0;
@@ -55,8 +57,10 @@ public class CamButtonReceiver extends BroadcastReceiver implements SensorEventL
 	    	dataLock.acquire();
 	    	
 	    	lastAction = intent.getAction();
+	    	lastExtras = intent.getExtras();
 	    	lastContext = context;
 	    	buttonsPressed = 1;
+	    	Log.v(TAG, "Intercepted: " + lastAction);
 	    	
 	    	//fetch the sensor manager for some quick sensing.
 	    	senseMan = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
@@ -92,6 +96,7 @@ public class CamButtonReceiver extends BroadcastReceiver implements SensorEventL
 					Log.v(TAG, "This cam button press is fine, let it through..");
 					//create a "Special" camera button intent that will pass through the onReceive filter above.
 					Intent specIntent = new Intent(lastAction);
+					specIntent.putExtras(lastExtras);
 					specIntent.putExtra(EXTRA_BYPASS_CAMBUTTON_FILTER, true);
 					lastContext.sendBroadcast(specIntent);
 				}
