@@ -44,8 +44,14 @@ public class MainActivity extends Activity {
         //Permanently enable this receiver.
         Log.v(TAG, "Permanently disabling camera button when device is upside down. Uninstall app to undo this.");
         ComponentName component = new ComponentName(this, CamButtonReceiver.class);
-        getPackageManager().setComponentEnabledSetting(component,
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);        
+    }
+    
+    @Override
+    protected void onStart(){
+    	super.onStart();
+    	
+    	//just exit.
+    	finish();
     }
 
 }
