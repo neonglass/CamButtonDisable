@@ -12,7 +12,7 @@
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="Cam Button Disable"
-        android:theme="@style/GlassTheme" >
+        android:theme="@android:style/Theme.NoDisplay" >
         <activity
             android:name="com.appliedanalog.glass.disablecam.MainActivity"
             android:label="CamButton Disabler" >

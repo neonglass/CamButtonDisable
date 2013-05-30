@@ -17,97 +17,45 @@
  */
 package com.appliedanalog.glass.disablecam;
 
-import java.util.concurrent.Semaphore;
-
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorListener;
-import android.hardware.SensorManager;
-import android.os.Bundle;
 import android.util.Log;
 
-public class CamButtonReceiver extends BroadcastReceiver implements SensorEventListener {
+public class CamButtonReceiver extends BroadcastReceiver {
 	final String TAG = "CamButtonInterceptor";
 	
-	//The threshold for the y-axis gravity value after which we will intercept camera button calls
-	final float Y_AXIS_GRAVITY_THRESH = -8.f;
 	
 	//Special bypass intent extra
-	final String EXTRA_BYPASS_CAMBUTTON_FILTER = "CamButtonFilterBypass";
-	
-	SensorManager senseMan = null;
-	String lastAction;
-	Bundle lastExtras;
-	Context lastContext;
-	Semaphore dataLock = new Semaphore(1);
-	int buttonsPressed = 0;
+	public static final String EXTRA_BYPASS_CAMBUTTON_FILTER = "CamButtonFilterBypass";
 
     @Override
     public void onReceive(Context context, Intent intent) {
     	if(intent.getExtras() != null &&
     	   intent.getExtras().getBoolean(EXTRA_BYPASS_CAMBUTTON_FILTER, false)){
+    		Log.v(TAG, "Got an accepted cam press, let it through!");
     		return;
     	}
     	
     	try{
-	    	dataLock.acquire();
-	    	
-	    	lastAction = intent.getAction();
-	    	lastExtras = intent.getExtras();
-	    	lastContext = context;
-	    	buttonsPressed = 1;
-	    	Log.v(TAG, "Intercepted: " + lastAction);
-	    	
-	    	//fetch the sensor manager for some quick sensing.
-	    	senseMan = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
-	    	Sensor sensor = senseMan.getDefaultSensor(Sensor.TYPE_GRAVITY);
-	    	senseMan.registerListener(this, sensor, SensorManager.SENSOR_DELAY_FASTEST);
+	    	Log.v(TAG, "Intercepted: " + intent.getAction());
 	        abortBroadcast(); //Although this is not actually an ordered broadcast, calling this method actually cancels it nonetheless!
 	        				  //it's messy though; exceptions are thrown. Don't expect this to work forever.
+	    	
     	}catch(Exception e){
-    		e.printStackTrace();
-    	}finally{
-    		dataLock.release();
+    		//e.printStackTrace();
     	}
+
+    	//Let the main activity handle this. The problem is that we cannot launch the sensor manager in this context without
+		//leaking something.
+    	Intent handlerIntent = new Intent(context, MainActivity.class);
+    	if(intent.getExtras() != null){
+    		handlerIntent.putExtras(intent.getExtras());
+    	}
+    	handlerIntent.putExtra(MainActivity.OP, MainActivity.CAM_INTERCEPT_OP);
+    	handlerIntent.putExtra(MainActivity.STORED_ACTION, intent.getAction());
+    	handlerIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    	context.startActivity(handlerIntent);
     }
 
-	@Override
-	public void onAccuracyChanged(Sensor sensor, int accuracy) { }
-
-	@Override
-	public void onSensorChanged(SensorEvent event) {
-		if(event.sensor.getType() == Sensor.TYPE_GRAVITY){
-			try{
-				dataLock.acquire();
-				
-				if(buttonsPressed <= 0){
-					return;
-				}
-				
-				if(event.values[1] < Y_AXIS_GRAVITY_THRESH){
-					buttonsPressed--; //thwart this press.
-			        Log.v(TAG, "Cam button intercepted and thwarted. Have a happy life!");
-				}else{
-					buttonsPressed--; //allow this one through.
-					Log.v(TAG, "This cam button press is fine, let it through..");
-					//create a "Special" camera button intent that will pass through the onReceive filter above.
-					Intent specIntent = new Intent(lastAction);
-					specIntent.putExtras(lastExtras);
-					specIntent.putExtra(EXTRA_BYPASS_CAMBUTTON_FILTER, true);
-					lastContext.sendBroadcast(specIntent);
-				}
-				
-				//We don't need the grav sensor anymore.
-				senseMan.unregisterListener(this);
-			}catch(Exception e){
-				e.printStackTrace();
-			}finally{
-				dataLock.release();
-			}
-		}
-	}
 }
